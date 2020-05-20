@@ -29,4 +29,6 @@ client.on('message', message => {
 	}
 });
 
-client.login(process.env.DISCORD_TOKEN);
+client.login(process.env.DISCORD_TOKEN).then(()=> {
+	console.log('don\'t worry jared, it\'s working');
+});

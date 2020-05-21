@@ -20,6 +20,9 @@
   "dependencies": {
     "discord.js": "^12.2.0",
     "dotenv": "^8.2.0",
-    "fs": "0.0.1-security"
+    "ffmpeg-static": "^4.2.2",
+    "fs": "0.0.1-security",
+    "unirest": "^0.6.0",
+    "ytdl-core": "^2.1.3"
   }
 }

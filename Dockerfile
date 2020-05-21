@@ -10,7 +10,6 @@ RUN npm install
 FROM arm32v6/node:12-alpine
 WORKDIR /app
 ENV PATH /app/node_modules/.bin:$PATH
-ENV PATH /app/node_modules/ffmpeg-static/bin/linux/x64:$PATH
 # Same as earlier, be specific or copy everything
 ADD package.json /app/package.json
 ADD package-lock.json /app/package-lock.json
@@ -18,6 +17,7 @@ ADD . /app
 
 COPY --from=builder /app/node_modules /app/node_modules
 
-ENV PORT=5000
-EXPOSE 5000
+
+ENV PATH /app/node_modules/ffmpeg-static/bin/linux/x64:$PATH
+
 CMD [ "npm", "start" ]

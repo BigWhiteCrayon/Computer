@@ -14,7 +14,6 @@ ENV PATH /app/node_modules/.bin:$PATH
 COPY package.json /app/package.json
 COPY package-lock.json /app/package-lock.json
 
-RUN npm install
 
 COPY --from=builder /app/node_modules /app/node_modules
 COPY --from=ffmpeg / /

@@ -16,6 +16,8 @@ ADD package.json /app/package.json
 ADD package-lock.json /app/package-lock.json
 ADD . /app
 
+RUN npm install ffmpeg-static
+
 COPY --from=builder /app/node_modules /app/node_modules
 
 ENV PORT=5000

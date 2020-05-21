@@ -1,6 +1,5 @@
 const unirest = require('unirest');
 const ytdl = require('ytdl-core');
-const ffmpeg = require('ffmpeg-static');
 
 module.exports = {
     name: 'play',

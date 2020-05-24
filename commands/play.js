@@ -28,7 +28,8 @@ module.exports = {
                         }
                         else if (connection.speaking.bitfield == 0) {
                             const musicURL = 'https://www.youtube.com/watch?v=' + res.body.items[0].id.videoId;
-                            connection.play(ytdl(musicURL, { quality: 'highestaudio' }), { volume: 0.25 })
+                            message.client.user.setPresence({ activity: { type: 'LISTENING', name:  res.body.items[0].snippet.title}});
+                            connection.play(ytdl(musicURL, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
                                 .on('speaking', (value) => {
                                     if (value == 1) { return; }
 
@@ -62,11 +63,13 @@ function musicQueueHandler(connection) {
     if (queue[0]) {
         const musicURL = 'https://www.youtube.com/watch?v=' + queue[0].videoId;
         queue.shift();
-        connection.play(ytdl(musicURL, { quality: 'highestaudio' }), { volume: 0.25 })
+        connection.play(ytdl(musicURL, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
                 message.delete().catch(console.error);
+                message.client.user.setPresence({ activity: { type: 'LISTENING', name:  res.body.items[0].snippet.title}});
                 musicQueueHandler(connection);
             });
     }
+    message.client.user.setPresence({ activity: {}});
 }

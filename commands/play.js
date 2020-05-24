@@ -1,6 +1,6 @@
 const unirest = require('unirest');
 const ytdl = require('ytdl-core');
-
+const qCommand = require('./queue.js');
 let queue = require('../resources/queue.json');
 
 module.exports = {
@@ -34,6 +34,7 @@ module.exports = {
 
                                     musicQueueHandler(connection);
                                 });
+                            message.delete().catch(console.error);
                         }
                         else {
                             queue.push({
@@ -42,9 +43,10 @@ module.exports = {
                                 artist: res.body.items[0].snippet.channelTitle,
                                 thumbnails: res.body.items[0].snippet.thumbnails
                             });
+
+                            qCommand.execute(message, args);
                         }
                     });
-                message.delete().catch(console.error);
             }
             else {
                 message.channel.send('Please provide a song title')
@@ -63,7 +65,7 @@ function musicQueueHandler(connection) {
         connection.play(ytdl(musicURL, { quality: 'highestaudio' }), { volume: 0.25 })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
-
+                message.delete().catch(console.error);
                 musicQueueHandler(connection);
             });
     }

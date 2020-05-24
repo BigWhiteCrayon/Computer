@@ -71,5 +71,5 @@ function musicQueueHandler(connection) {
                 musicQueueHandler(connection);
             });
     }
-    message.client.user.setPresence({ activity: {}});
+    message.client.user.setPresence({});
 }

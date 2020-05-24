@@ -71,5 +71,7 @@ function musicQueueHandler(connection) {
                 musicQueueHandler(connection);
             });
     }
-    message.client.user.setPresence({});
+    else{
+        message.client.user.setPresence({});
+    }
 }

@@ -1,6 +1,5 @@
 const unirest = require('unirest');
 const ytdl = require('ytdl-core');
-const fs = require('fs');
 
 let queue = require('../resources/queue.json');
 

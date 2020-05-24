@@ -66,12 +66,11 @@ function musicQueueHandler(connection) {
         connection.play(ytdl(musicURL, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
-                message.delete().catch(console.error);
-                message.client.user.setPresence({ activity: { type: 'LISTENING', name:  res.body.items[0].snippet.title}});
+                connection.client.user.setPresence({ activity: { type: 'LISTENING', name:  res.body.items[0].snippet.title}});
                 musicQueueHandler(connection);
             });
     }
     else{
-        //message.client.user.setPresence(null);
+        connection.client.user.setPresence(null);
     }
 }

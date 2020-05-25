@@ -61,16 +61,23 @@ module.exports = {
 
 function musicQueueHandler(connection) {
     if (queue[0]) {
-        const musicURL = 'https://www.youtube.com/watch?v=' + queue[0].videoId;
-        queue.shift();
+        const song = queue.shift();
+        const musicURL = 'https://www.youtube.com/watch?v=' + song.videoId;
+        if(connection.client.user.lastMessage && queue[0]){
+            qCommand.execute(connection.client.user.lastMessage);
+        }
+        else if(!queue[0]){
+            connection.client.user.lastMessage.delete().catch(console.error);
+        }
+        connection.client.user.setPresence({ activity: { type: 'LISTENING', name:  song.title}});
         connection.play(ytdl(musicURL, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
-                connection.client.user.setPresence({ activity: { type: 'LISTENING', name:  res.body.items[0].snippet.title}});
+
                 musicQueueHandler(connection);
             });
     }
     else{
-        //connection.client.user.setPresence(null);
+        connection.client.user.setPresence({}).catch(console.error);
     }
 }

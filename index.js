@@ -2,6 +2,7 @@ require('dotenv').config();
 const fs = require('fs');
 const Discord = require('discord.js');
 const { prefix } = require('./config.json');
+const voice = require('./voice.js');
 
 const client = new Discord.Client();
 client.commands = new Discord.Collection();
@@ -34,15 +35,15 @@ client.on('message', message => {
 //	I have elected to leave it in and simply comment out the relevant section.		//
 //////////////////////////////////////////////////////////////////////////////////////
 
-/*client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
+client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 	if (newVoiceState.member.user.bot || !newVoiceState.channel) { return }
 
 	const connection = await newVoiceState.member.voice.channel.join().catch(console.error);
 	
-    const audio = connection.receiver.createStream(newVoiceState.member.user, { mode: 'pcm', end: 'manual' });
+    
 	console.log(newVoiceState.member.user.username);
-	voice.listen(audio);
-});*/
+	voice.listen(connection, newVoiceState.member.user);
+});
 
 client.login(process.env.DISCORD_TOKEN).then(()=> {
 	console.log('don\'t worry Jared, it\'s working');

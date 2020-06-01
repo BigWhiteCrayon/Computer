@@ -1,87 +1,110 @@
-const { Models , Detector } = require('snowboy');
+const { Models, Detector } = require('snowboy');
 const speech = require('@google-cloud/speech');
+const SampleRate = require('node-libsamplerate');
+const { Transform } = require('stream');
 
 const speechClient = new speech.SpeechClient();
 
+function listen(connection, user) {
+	const audio = connection.receiver.createStream(user, { mode: 'pcm', end: 'manual' });
 
-function listen(audio){
 	const convertTo1ChannelStream = new ConvertTo1ChannelStream();
 
-	const monoAudio = audio.pipe(convertTo1ChannelStream);
+	const resample = new SampleRate({
+		type: 2,
+		channels: 1,
+		fromRate: 48000,
+		fromDepth: 16,
+		toRate: 16000,
+		toDepth: 16
+	});
+
+	let monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
+
 	const models = new Models();
 
 	const request = {
 		config: {
-		encoding: 'LINEAR16',
-		sampleRateHertz: 48000,
-		languageCode: 'en-US',
-	  },
-	  interimResults: false,
-	  singleUtterance: true
+			encoding: 'LINEAR16',
+			sampleRateHertz: 16000,
+			languageCode: 'en-US',
+		},
+		interimResults: false,
+		singleUtterance: true
 	};
 
 	models.add({
 		file: './node_modules/snowboy/resources/models/computer.umdl',
-		sensitivity: '0.99',
+		sensitivity: '0.7',
 		hotwords: 'computer'
 	});
 
 	const detector = new Detector({
 		resource: './node_modules/snowboy/resources/common.res',
 		models: models,
-		audioGain: 1.225,
+		audioGain: 1.0,
 		applyFrontEnd: true
 	});
 
-
-	  detector.on('hotword', function (index, hotword, buffer) {
-		// <buffer> contains the last chunk of the audio that triggers the "hotword"
-		// event. It could be written to a wav stream. You will have to use it
-		// together with the <buffer> in the "sound" event if you want to get audio
-		// data after the hotword.
+	detector.on('hotword', function (index, hotword, buffer) {
+		connection.play('./resources/on_connect.wav');
 		console.log('hotword', index, hotword);
 		monoAudio.unpipe(detector);
 		
 		const requestStream = speechClient.streamingRecognize(request)
-		.on('error', console.error)
-		.on('data', data => {
-		  console.log(data.results[0].alternatives);
-		  monoAudio.unpipe(requestStream);
-		  monoAudio.pipe(detector);
-		  requestStream.end();
-		});
-		
+			.on('error', console.error)
+			.on('data', data => {
+				monoAudio.unpipe(requestStream);
+				monoAudio.pipe(detector);
+				requestStream.end();
+				console.log(data.results[0] ? data.results[0].alternatives : data);
+				if (data.results[0]) {
+					const client = connection.client;
+
+					let args = data.results[0].alternatives[0].transcript.split(' ');
+					const command = args.shift().toLowerCase();
+
+					if (!client.commands.has(command)) return;
+
+					if(command == 'play'){
+						const play = require('./commands/play.js');
+						play.voice(args, connection);
+					}
+				}
+			});
+
 		monoAudio.pipe(requestStream);
+
 		
-	  });
-	
-	  
+	});
+
+
 	monoAudio.pipe(detector);
 }
 
-const { Transform } = require('stream')
+
 
 function convertBufferTo1Channel(buffer) {
-  const convertedBuffer = Buffer.alloc(buffer.length / 2)
+	const convertedBuffer = Buffer.alloc(buffer.length / 2)
 
-  for (let i = 0; i < convertedBuffer.length / 2; i++) {
-    const uint16 = buffer.readUInt16LE(i * 4)
-    convertedBuffer.writeUInt16LE(uint16, i * 2)
-  }
+	for (let i = 0; i < convertedBuffer.length / 2; i++) {
+		const uint16 = buffer.readUInt16LE(i * 4)
+		convertedBuffer.writeUInt16LE(uint16, i * 2)
+	}
 
-  return convertedBuffer
+	return convertedBuffer
 }
 
 class ConvertTo1ChannelStream extends Transform {
-  constructor(source, options) {
-    super(options)
-  }
+	constructor(source, options) {
+		super(options)
+	}
 
-  _transform(data, encoding, next) {
-    next(null, convertBufferTo1Channel(data))
-  }
+	_transform(data, encoding, next) {
+		next(null, convertBufferTo1Channel(data))
+	}
 }
 
 module.exports = {
-    listen
+	listen
 };

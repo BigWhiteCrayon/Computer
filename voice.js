@@ -18,6 +18,7 @@ function listen(connection, user) {
 		toRate: 16000,
 		toDepth: 16
 	});
+
 	let monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
 
 	const models = new Models();
@@ -41,22 +42,22 @@ function listen(connection, user) {
 	const detector = new Detector({
 		resource: './node_modules/snowboy/resources/common.res',
 		models: models,
-		audioGain: 2.0,
+		audioGain: 1.0,
 		applyFrontEnd: true
 	});
 
-
 	detector.on('hotword', function (index, hotword, buffer) {
-		
+		connection.play('./resources/on_connect.wav');
 		console.log('hotword', index, hotword);
 		monoAudio.unpipe(detector);
-
+		
 		const requestStream = speechClient.streamingRecognize(request)
-			.on('error', (err) => {
-				console.error(err);
-			})
+			.on('error', console.error)
 			.on('data', data => {
-				//console.log(data.results[0] ? data.results[0].alternatives : data);
+				monoAudio.unpipe(requestStream);
+				monoAudio.pipe(detector);
+				requestStream.end();
+				console.log(data.results[0] ? data.results[0].alternatives : data);
 				if (data.results[0]) {
 					const client = connection.client;
 
@@ -70,13 +71,11 @@ function listen(connection, user) {
 						play.voice(args, connection);
 					}
 				}
-				monoAudio.unpipe(requestStream);
-				monoAudio.pipe(detector);
-				requestStream.end();
 			});
 
 		monoAudio.pipe(requestStream);
 
+		
 	});
 
 

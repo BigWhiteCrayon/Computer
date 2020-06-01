@@ -29,7 +29,12 @@ client.on('message', message => {
 	}
 });
 
-client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
+//////////////////////////////////////////////////////////////////////////////////////
+//	Voice was nowhere near ready to be deployed and I merged to master by mistake.	//
+//	I have elected to leave it in and simply comment out the relevant section.		//
+//////////////////////////////////////////////////////////////////////////////////////
+
+/*client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 	if (newVoiceState.member.user.bot || !newVoiceState.channel) { return }
 
 	const connection = await newVoiceState.member.voice.channel.join().catch(console.error);
@@ -37,7 +42,7 @@ client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
     const audio = connection.receiver.createStream(newVoiceState.member.user, { mode: 'pcm', end: 'manual' });
 	console.log(newVoiceState.member.user.username);
 	voice.listen(audio);
-});
+});*/
 
 client.login(process.env.DISCORD_TOKEN).then(()=> {
 	console.log('don\'t worry Jared, it\'s working');

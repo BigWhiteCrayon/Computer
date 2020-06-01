@@ -58,23 +58,19 @@ module.exports = {
             yts(opts, (err, res) => {
                 if (err) { return console.error(err); }
                 if (connection.speaking.bitfield == 0) {
-
-                    message.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
+                    connection.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
                     connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
                         .on('speaking', (value) => {
                             if (value == 1) { return; }
 
                             musicQueueHandler(connection);
                         });
-                    message.delete().catch(console.error);
                 }
                 else {
                     queue.push({
                         url: res.videos[0].url,
                         title: res.videos[0].title
                     });
-
-                    qCommand.execute(message, args);
                 }
             })
         }

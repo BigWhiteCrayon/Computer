@@ -57,7 +57,6 @@ function listen(connection, user) {
 		const requestStream = speechClient.streamingRecognize(request)
 			.on('error', (err) => {
 				console.error(err);
-				requestStream.end();
 			})
 			.on('data', data => {
 				console.log(data.results[0] ? data.results[0].alternatives : data);

@@ -47,10 +47,7 @@ function listen(connection, user) {
 
 
 	detector.on('hotword', function (index, hotword, buffer) {
-		// <buffer> contains the last chunk of the audio that triggers the "hotword"
-		// event. It could be written to a wav stream. You will have to use it
-		// together with the <buffer> in the "sound" event if you want to get audio
-		// data after the hotword.
+		
 		console.log('hotword', index, hotword);
 		monoAudio.unpipe(detector);
 
@@ -59,7 +56,7 @@ function listen(connection, user) {
 				console.error(err);
 			})
 			.on('data', data => {
-				console.log(data.results[0] ? data.results[0].alternatives : data);
+				//console.log(data.results[0] ? data.results[0].alternatives : data);
 				if (data.results[0]) {
 					const client = connection.client;
 

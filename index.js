@@ -35,7 +35,7 @@ client.on('message', message => {
 //	I have elected to leave it in and simply comment out the relevant section.		//
 //////////////////////////////////////////////////////////////////////////////////////
 
-/*client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
+client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 	if (newVoiceState.member.user.bot || !newVoiceState.channel) { return }
 
 	const connection = await newVoiceState.member.voice.channel.join().catch(console.error);
@@ -43,7 +43,7 @@ client.on('message', message => {
     
 	console.log(newVoiceState.member.user.username);
 	voice.listen(connection, newVoiceState.member.user);
-});*/
+});
 
 client.login(process.env.DISCORD_TOKEN).then(()=> {
 	console.log('don\'t worry Jared, it\'s working');

@@ -24,6 +24,7 @@
     "ffmpeg-static": "^4.2.2",
     "fs": "0.0.1-security",
     "unirest": "^0.6.0",
+    "yt-search": "^1.1.2",
     "ytdl-core": "^2.1.3"
   }
 }

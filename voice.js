@@ -2,6 +2,7 @@ const { Models, Detector } = require('snowboy');
 const speech = require('@google-cloud/speech');
 const SampleRate = require('node-libsamplerate');
 const { Transform } = require('stream');
+const play = require('./commands/play.js');
 
 const speechClient = new speech.SpeechClient();
 
@@ -35,29 +36,37 @@ function listen(connection, user) {
 
 	models.add({
 		file: './node_modules/snowboy/resources/models/computer.umdl',
-		sensitivity: '0.7',
+		sensitivity: '0.6',
 		hotwords: 'computer'
 	});
 
 	const detector = new Detector({
 		resource: './node_modules/snowboy/resources/common.res',
 		models: models,
-		audioGain: 1.0,
+		audioGain: 0.75,
 		applyFrontEnd: true
 	});
 
 	detector.on('hotword', function (index, hotword, buffer) {
-		connection.play('./resources/on_connect.wav');
-		console.log('hotword', index, hotword);
+		if(play.isPlaying){ 
+			play.pause();
+		}
+		connection.play('./resources/on_connect.wav').on('end', () => {
+			
+		});
+
 		monoAudio.unpipe(detector);
-		
+
 		const requestStream = speechClient.streamingRecognize(request)
 			.on('error', console.error)
 			.on('data', data => {
+				if(play.isPaused){
+					play.resume();
+				}
 				monoAudio.unpipe(requestStream);
 				monoAudio.pipe(detector);
 				requestStream.end();
-				console.log(data.results[0] ? data.results[0].alternatives : data);
+				
 				if (data.results[0]) {
 					const client = connection.client;
 
@@ -66,16 +75,24 @@ function listen(connection, user) {
 
 					if (!client.commands.has(command)) return;
 
-					if(command == 'play'){
-						const play = require('./commands/play.js');
-						play.voice(args, connection);
+					if (command == 'play') {
+						play.connection = connection;
+						play.voice(args);
 					}
 				}
 			});
 
+		setTimeout(() => {
+			if (requestStream.writable) {
+				monoAudio.unpipe(requestStream);
+				monoAudio.pipe(detector);
+				requestStream.setWritable(false);
+			}
+		}, 6000)
+
 		monoAudio.pipe(requestStream);
 
-		
+
 	});
 
 

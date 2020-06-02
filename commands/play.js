@@ -3,12 +3,16 @@ const yts = require('yt-search');
 const qCommand = require('./queue.js');
 let queue = require('../resources/queue.json');
 
+let timerStart = null;
+let currentURL = null;
+let timerElapsed = null;
+
 module.exports = {
     name: 'play',
     description: 'plays music',
     async execute(message, args) {
         if (message.member.voice.channel) {
-            const connection = await message.member.voice.channel.join();
+            this.connection = await message.member.voice.channel.join();
             if (args[0]) {
                 let opts = {
                     query: args.join(' '),
@@ -18,14 +22,19 @@ module.exports = {
 
                 yts(opts, (err, res) => {
                     if (err) { return console.error(err); }
-                    if (connection.speaking.bitfield == 0) {
+                    if (this.connection.speaking.bitfield == 0) {
 
                         message.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
-                        connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                        this.connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                            .on('start', () => {
+                                timerStart = process.hrtime.bigint();
+                                currentURL = res.videos[0].url;
+                                this.isPlaying = true;
+                            })
                             .on('speaking', (value) => {
                                 if (value == 1) { return; }
 
-                                musicQueueHandler(connection);
+                                musicQueueHandler();
                             });
                         message.delete().catch(console.error);
                     }
@@ -47,7 +56,7 @@ module.exports = {
             message.channel.send('You need to join a channel first');
         }
     },
-    async voice(args, connection) {
+    async voice(args) {
         if (args[0]) {
             let opts = {
                 query: args.join(' '),
@@ -57,13 +66,18 @@ module.exports = {
 
             yts(opts, (err, res) => {
                 if (err) { return console.error(err); }
-                if (connection.speaking.bitfield == 0) {
-                    connection.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
-                    connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                if (!this.isPlaying && !this.isPaused) {
+                    this.connection.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
+                    this.connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                        .on('start', () => {
+                            timerStart = process.hrtime.bigint();
+                            currentURL = res.videos[0].url;
+                            this.isPlaying = true;
+                        })
                         .on('speaking', (value) => {
                             if (value == 1) { return; }
 
-                            musicQueueHandler(connection);
+                            musicQueueHandler(this.connection);
                         });
                 }
                 else {
@@ -74,7 +88,30 @@ module.exports = {
                 }
             })
         }
-    }
+    },
+    pause() {
+        if (!this.isPlaying) { return; }
+        this.isPaused = true;
+        this.isPlaying = false;
+        timerElapsed = process.hrtime.bigint() - timerStart;
+    },
+    resume() {
+        if (!this.isPaused) { return; }
+        this.isPaused = false;
+        this.isPlaying = true;
+        this.connection.play(ytdl(currentURL+'&t='+(timerElapsed / 1000000000n).toString(), { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+            .on('start', () => {
+                timerStart = process.hrtime.bigint() - timerElapsed;
+            })
+            .on('speaking', (value) => {
+                if (value == 1) { return; }
+
+                musicQueueHandler(this.connection);
+            });
+    },
+    isPaused: false,
+    isPlaying: false,
+    connection: null
 };
 
 function musicQueueHandler(connection) {
@@ -83,11 +120,15 @@ function musicQueueHandler(connection) {
         if (connection.client.user.lastMessage && queue[0]) {
             qCommand.execute(connection.client.user.lastMessage);
         }
-        else if (!queue[0]) {
+        else if (!queue[0] && connection.client.user.lastMessage) {
             connection.client.user.lastMessage.delete().catch(console.error);
         }
         connection.client.user.setPresence({ activity: { type: 'LISTENING', name: song.title } });
         connection.play(ytdl(song.url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+            .on('start', () => {
+                timerStart = process.hrtime.bigint();
+                currentURL = song.url;
+            })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
 
@@ -95,6 +136,8 @@ function musicQueueHandler(connection) {
             });
     }
     else {
+        this.isPlaying = false;
+        currentURL = null;
         connection.client.user.setPresence({}).catch(console.error);
     }
 }

@@ -6,99 +6,121 @@ const play = require('./commands/play.js');
 
 const speechClient = new speech.SpeechClient();
 
-function listen(connection, user) {
-	const audio = connection.receiver.createStream(user, { mode: 'pcm', end: 'manual' });
+class Voice {
+	constructor(member) {
+		const models = new Models();
 
-	const convertTo1ChannelStream = new ConvertTo1ChannelStream();
-
-	const resample = new SampleRate({
-		type: 2,
-		channels: 1,
-		fromRate: 48000,
-		fromDepth: 16,
-		toRate: 16000,
-		toDepth: 16
-	});
-
-	let monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
-
-	const models = new Models();
-
-	const request = {
-		config: {
-			encoding: 'LINEAR16',
-			sampleRateHertz: 16000,
-			languageCode: 'en-US',
-		},
-		interimResults: false,
-		singleUtterance: true
-	};
-
-	models.add({
-		file: './node_modules/snowboy/resources/models/computer.umdl',
-		sensitivity: '0.6',
-		hotwords: 'computer'
-	});
-
-	const detector = new Detector({
-		resource: './node_modules/snowboy/resources/common.res',
-		models: models,
-		audioGain: 0.75,
-		applyFrontEnd: true
-	});
-
-	detector.on('hotword', function (index, hotword, buffer) {
-		if(play.isPlaying){ 
-			play.pause();
-		}
-		connection.play('./resources/on_connect.wav').on('end', () => {
-			
+		models.add({
+			file: './node_modules/snowboy/resources/models/computer.umdl',
+			sensitivity: process.env.SNOWBOY_SENSITIVITY,
+			hotwords: 'computer'
 		});
 
-		monoAudio.unpipe(detector);
+		this.detector = new Detector({
+			resource: './node_modules/snowboy/resources/common.res',
+			models: models,
+			audioGain: Number(process.env.SNOWBOY_GAIN),
+			applyFrontEnd: true
+		});
 
-		const requestStream = speechClient.streamingRecognize(request)
-			.on('error', console.error)
-			.on('data', data => {
-				if(play.isPaused){
-					play.resume();
-				}
-				monoAudio.unpipe(requestStream);
-				monoAudio.pipe(detector);
-				requestStream.end();
-				
-				if (data.results[0]) {
-					const client = connection.client;
+		const resample = new SampleRate({
+			type: 2,
+			channels: 1,
+			fromRate: 48000,
+			fromDepth: 16,
+			toRate: 16000,
+			toDepth: 16
+		});
 
-					let args = data.results[0].alternatives[0].transcript.split(' ');
-					const command = args.shift().toLowerCase();
+		this.connection = member.voice.channel.join().then(connection => {
+			this.connection = connection;
+			const audio = this.connection.receiver.createStream(member.user, { mode: 'pcm', end: 'manual' });
+	
+			const convertTo1ChannelStream = new ConvertTo1ChannelStream();
+	
+			this.monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
+			this.requestStream = null;
 
-					if (!client.commands.has(command)) return;
+			//truth be told I'm not satisfied with this solution
+			//I would prefer to declare the object then call listen, it seems more intuitive to me
+			//however its late when I refactored this and I'd be lying if I said I expected this to be changed soon
+			this.listen();
+		});
+	}
 
-					if (command == 'play') {
-						play.connection = connection;
-						play.voice(args);
-					}
-				}
-			});
+	listen() {
+		const request = {
+			config: {
+				encoding: 'LINEAR16',
+				sampleRateHertz: 16000,
+				languageCode: 'en-US',
+			},
+			interimResults: false,
+			singleUtterance: true
+		};
 
-		setTimeout(() => {
-			if (requestStream.writable) {
-				monoAudio.unpipe(requestStream);
-				monoAudio.pipe(detector);
-				requestStream.setWritable(false);
+		this.detector.on('hotword', () => {
+			this.monoAudio.unpipe(this.detector);
+			if (play.isPlaying) {
+				play.pause();
 			}
-		}, 6000)
-
-		monoAudio.pipe(requestStream);
+			this.connection.play('./resources/on_connect.wav', { volume: 0.75 });
 
 
-	});
+			this.requestStream = speechClient.streamingRecognize(request)
+				.on('error', console.error)
+				.on('data', data => {
+					if (play.isPaused) {
+						play.resume();
+					}
+					this.monoAudio.unpipe(this.requestStream);
+					this.monoAudio.pipe(this.detector);
+					this.requestStream.end();
 
+					if (data.results[0]) {
+						const client = this.connection.client;
 
-	monoAudio.pipe(detector);
+						let args = data.results[0].alternatives[0].transcript.split(' ');
+						const command = args.shift().toLowerCase();
+
+						if (client.voiceCommands.has(command)){ return; }
+
+						try {
+							if(!play.connection){
+								play.connection = this.connection;
+							}
+							client.commands.get(command).executeVoice(args);
+						} catch (error) {
+							console.error(error);
+						}
+					}
+				});
+
+			setTimeout(() => {
+				if (this.requestStream.writable) {
+					this.monoAudio.unpipe(this.requestStream);
+					this.monoAudio.pipe(this.detector);
+					this.requestStream.setWritable(false);
+				}
+			}, 6000);
+			this.monoAudio.pipe(this.requestStream);
+		});
+		this.monoAudio.pipe(this.detector);
+	}
+
+	close() {
+		if (this.requestStream && this.requestStream.writable) {
+			this.requestStream.destroy();
+			if(play.isPaused){
+				play.resume();
+			}
+		}
+		if(this.monoAudio){
+			this.monoAudio.destroy();
+			this.detector.destroy();
+		}
+	}
 }
-
 
 
 function convertBufferTo1Channel(buffer) {
@@ -122,6 +144,5 @@ class ConvertTo1ChannelStream extends Transform {
 	}
 }
 
-module.exports = {
-	listen
-};
+module.exports = Voice
+

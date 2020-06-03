@@ -56,7 +56,7 @@ module.exports = {
             message.channel.send('You need to join a channel first');
         }
     },
-    async voice(args) {
+    async executeVoice(args) {
         if (args[0]) {
             let opts = {
                 query: args.join(' '),
@@ -95,6 +95,7 @@ module.exports = {
         this.isPlaying = false;
         timerElapsed = process.hrtime.bigint() - timerStart;
     },
+    //at the moment due to how inconsistent youtube is this just doesn't work, I'm leaving it in for hope
     resume() {
         if (!this.isPaused) { return; }
         this.isPaused = false;

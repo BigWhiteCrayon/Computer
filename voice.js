@@ -2,86 +2,125 @@ const { Models, Detector } = require('snowboy');
 const speech = require('@google-cloud/speech');
 const SampleRate = require('node-libsamplerate');
 const { Transform } = require('stream');
+const play = require('./commands/play.js');
 
 const speechClient = new speech.SpeechClient();
 
-function listen(connection, user) {
-	const audio = connection.receiver.createStream(user, { mode: 'pcm', end: 'manual' });
+class Voice {
+	constructor(member) {
+		const models = new Models();
 
-	const convertTo1ChannelStream = new ConvertTo1ChannelStream();
+		models.add({
+			file: './node_modules/snowboy/resources/models/computer.umdl',
+			sensitivity: process.env.SNOWBOY_SENSITIVITY,
+			hotwords: 'computer'
+		});
 
-	const resample = new SampleRate({
-		type: 2,
-		channels: 1,
-		fromRate: 48000,
-		fromDepth: 16,
-		toRate: 16000,
-		toDepth: 16
-	});
+		this.detector = new Detector({
+			resource: './node_modules/snowboy/resources/common.res',
+			models: models,
+			audioGain: Number(process.env.SNOWBOY_GAIN),
+			applyFrontEnd: true
+		});
 
-	let monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
+		const resample = new SampleRate({
+			type: 2,
+			channels: 1,
+			fromRate: 48000,
+			fromDepth: 16,
+			toRate: 16000,
+			toDepth: 16
+		});
 
-	const models = new Models();
+		this.connection = member.voice.channel.join().then(connection => {
+			this.connection = connection;
+			const audio = this.connection.receiver.createStream(member.user, { mode: 'pcm', end: 'manual' });
+	
+			const convertTo1ChannelStream = new ConvertTo1ChannelStream();
+	
+			this.monoAudio = audio.pipe(convertTo1ChannelStream).pipe(resample);
+			this.requestStream = null;
 
-	const request = {
-		config: {
-			encoding: 'LINEAR16',
-			sampleRateHertz: 16000,
-			languageCode: 'en-US',
-		},
-		interimResults: false,
-		singleUtterance: true
-	};
+			//truth be told I'm not satisfied with this solution
+			//I would prefer to declare the object then call listen, it seems more intuitive to me
+			//however its late when I refactored this and I'd be lying if I said I expected this to be changed soon
+			this.listen();
+		});
+	}
 
-	models.add({
-		file: './node_modules/snowboy/resources/models/computer.umdl',
-		sensitivity: '0.7',
-		hotwords: 'computer'
-	});
+	listen() {
+		const request = {
+			config: {
+				encoding: 'LINEAR16',
+				sampleRateHertz: 16000,
+				languageCode: 'en-US',
+			},
+			interimResults: false,
+			singleUtterance: true
+		};
 
-	const detector = new Detector({
-		resource: './node_modules/snowboy/resources/common.res',
-		models: models,
-		audioGain: 1.0,
-		applyFrontEnd: true
-	});
+		this.detector.on('hotword', () => {
+			this.monoAudio.unpipe(this.detector);
+			if (play.isPlaying) {
+				play.pause();
+			}
+			this.connection.play('./resources/on_connect.wav', { volume: 0.75 });
 
-	detector.on('hotword', function (index, hotword, buffer) {
-		connection.play('./resources/on_connect.wav');
-		console.log('hotword', index, hotword);
-		monoAudio.unpipe(detector);
-		
-		const requestStream = speechClient.streamingRecognize(request)
-			.on('error', console.error)
-			.on('data', data => {
-				monoAudio.unpipe(requestStream);
-				monoAudio.pipe(detector);
-				requestStream.end();
-				console.log(data.results[0] ? data.results[0].alternatives : data);
-				if (data.results[0]) {
-					const client = connection.client;
 
-					let args = data.results[0].alternatives[0].transcript.split(' ');
-					const command = args.shift().toLowerCase();
-
-					if (!client.commands.has(command)) return;
-
-					if(command == 'play'){
-						const play = require('./commands/play.js');
-						play.voice(args, connection);
+			this.requestStream = speechClient.streamingRecognize(request)
+				.on('error', console.error)
+				.on('data', data => {
+					if (play.isPaused) {
+						play.resume();
 					}
+					this.monoAudio.unpipe(this.requestStream);
+					this.monoAudio.pipe(this.detector);
+					this.requestStream.end();
+
+					if (data.results[0]) {
+						const client = this.connection.client;
+
+						let args = data.results[0].alternatives[0].transcript.split(' ');
+						const command = args.shift().toLowerCase();
+
+						if (client.voiceCommands.has(command)){ return; }
+
+						try {
+							if(!play.connection){
+								play.connection = this.connection;
+							}
+							client.commands.get(command).executeVoice(args);
+						} catch (error) {
+							console.error(error);
+						}
+					}
+				});
+
+			setTimeout(() => {
+				if (this.requestStream.writable) {
+					this.monoAudio.unpipe(this.requestStream);
+					this.monoAudio.pipe(this.detector);
+					this.requestStream.setWritable(false);
 				}
-			});
+			}, 6000);
+			this.monoAudio.pipe(this.requestStream);
+		});
+		this.monoAudio.pipe(this.detector);
+	}
 
-		monoAudio.pipe(requestStream);
-
-		
-	});
-
-
-	monoAudio.pipe(detector);
+	close() {
+		if (this.requestStream && this.requestStream.writable) {
+			this.requestStream.destroy();
+			if(play.isPaused){
+				play.resume();
+			}
+		}
+		if(this.monoAudio){
+			this.monoAudio.destroy();
+			this.detector.destroy();
+		}
+	}
 }
-
 
 
 function convertBufferTo1Channel(buffer) {
@@ -105,6 +144,5 @@ class ConvertTo1ChannelStream extends Transform {
 	}
 }
 
-module.exports = {
-	listen
-};
+module.exports = Voice
+

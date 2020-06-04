@@ -2,16 +2,21 @@ require('dotenv').config();
 const fs = require('fs');
 const Discord = require('discord.js');
 const { prefix } = require('./config.json');
-const voice = require('./voice.js');
+const Voice = require('./voice.js');
 
 const client = new Discord.Client();
 client.commands = new Discord.Collection();
+client.voiceCommands = new Discord.Collection();
 
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
 	const command = require(`./commands/${file}`);
 	client.commands.set(command.name, command);
+	//since I don't expect all typed commands to have a voice command equivilent this if is required
+	if(command.excecuteVoice){
+		client.voiceCommands.set(command.name, command);
+	}	
 }
 
 client.on('message', message => {
@@ -30,21 +35,38 @@ client.on('message', message => {
 	}
 });
 
-//////////////////////////////////////////////////////////////////////////////////////
-//	Voice was nowhere near ready to be deployed and I merged to master by mistake.	//
-//	I have elected to leave it in and simply comment out the relevant section.		//
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//	This is the voice section. It will only work on linux or MacOS			//
+//	My recommedation is to either use the docker image or comment this out	//
+//////////////////////////////////////////////////////////////////////////////
 
-/*client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
-	if (newVoiceState.member.user.bot || !newVoiceState.channel) { return }
+const voiceMap = new Map(); // stores all the voice objects
 
-	const connection = await newVoiceState.member.voice.channel.join().catch(console.error);
-	
-    
-	console.log(newVoiceState.member.user.username);
-	voice.listen(connection, newVoiceState.member.user);
-});*/
+client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
+	if (newVoiceState.member.user.bot){ return; }
+	else if(!newVoiceState.channel || //if a user disconnects their voice state is now null
+			(newVoiceState.guild.voice && newVoiceState.guild.voice.connection && 
+			newVoiceState.channel != newVoiceState.guild.voice.channel)){
 
-client.login(process.env.DISCORD_TOKEN).then(()=> {
+		if(!voiceMap.has(newVoiceState.member) || !newVoiceState.guild.voice.connection){ return; }//they were never connected
+
+		if(oldVoiceState.channel.members.size <= 1){
+			oldVoiceState.guild.voice.connection.disconnect();
+			client.user.setPresence({}).catch(console.error);
+		}
+
+		voiceMap.get(newVoiceState.member).close();
+		voiceMap.delete(newVoiceState);
+	}
+	else{
+		if(newVoiceState.guild.voice && newVoiceState.guild.voice.connection &&
+			newVoiceState.channelID != newVoiceState.guild.voice.channelID){ return; }
+
+		console.log(newVoiceState.member.user.username);
+		voiceMap.set(newVoiceState.member, new Voice(newVoiceState.member));
+	}
+});
+
+client.login(process.env.DISCORD_TOKEN).then(() => {
 	console.log('don\'t worry Jared, it\'s working');
 });

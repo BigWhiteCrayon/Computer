@@ -39,21 +39,31 @@ client.on('message', message => {
 //	Voice was nowhere near ready to be deployed and I merged to master by mistake.	//
 //	I have elected to leave it in and simply comment out the relevant section.		//
 //////////////////////////////////////////////////////////////////////////////////////
-const voiceMap = new Map();
+const voiceMap = new Map(); // stores all the voice objects
 
 client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 	if (newVoiceState.member.user.bot){ return; }
-	else if(!newVoiceState.channel){//if a user disconnects their voice state is now null
+	else if(!newVoiceState.channel || 
+			(newVoiceState.guild.voice && newVoiceState.guild.voice.connection
+			&& newVoiceState.channel != newVoiceState.guild.voice.channel)){//if a user disconnects their voice state is now null
 		if(!voiceMap.has(newVoiceState.member)){ return; }//they were never connected
+		
+		if(oldVoiceState.channel.members.size <= 1){
+			oldVoiceState.guild.voice.connection.disconnect();
+			client.user.setPresence({}).catch(console.error);
+		}
 		voiceMap.get(newVoiceState.member).close();
 		voiceMap.delete(newVoiceState);
 	}
 	else{
+		if(newVoiceState.guild.voice && newVoiceState.guild.voice.connection &&
+			newVoiceState.channelID != newVoiceState.guild.voice.channelID){ return; }
+
 		console.log(newVoiceState.member.user.username);
 		voiceMap.set(newVoiceState.member, new Voice(newVoiceState.member));
 	}
 });
 
-client.login(process.env.DISCORD_TOKEN).then(()=> {
+client.login(process.env.DISCORD_TOKEN).then(() => {
 	console.log('don\'t worry Jared, it\'s working');
 });

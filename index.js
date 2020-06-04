@@ -35,23 +35,26 @@ client.on('message', message => {
 	}
 });
 
-//////////////////////////////////////////////////////////////////////////////////////
-//	Voice was nowhere near ready to be deployed and I merged to master by mistake.	//
-//	I have elected to leave it in and simply comment out the relevant section.		//
-//////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+//	This is the voice section. It will only work on linux or MacOS			//
+//	My recommedation is to either use the docker image or comment this out	//
+//////////////////////////////////////////////////////////////////////////////
+
 const voiceMap = new Map(); // stores all the voice objects
 
 client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 	if (newVoiceState.member.user.bot){ return; }
-	else if(!newVoiceState.channel || 
-			(newVoiceState.guild.voice && newVoiceState.guild.voice.connection
-			&& newVoiceState.channel != newVoiceState.guild.voice.channel)){//if a user disconnects their voice state is now null
-		if(!voiceMap.has(newVoiceState.member)){ return; }//they were never connected
-		
+	else if(!newVoiceState.channel || //if a user disconnects their voice state is now null
+			(newVoiceState.guild.voice && newVoiceState.guild.voice.connection && 
+			newVoiceState.channel != newVoiceState.guild.voice.channel)){
+
+		if(!voiceMap.has(newVoiceState.member) || !newVoiceState.guild.voice.connection){ return; }//they were never connected
+
 		if(oldVoiceState.channel.members.size <= 1){
 			oldVoiceState.guild.voice.connection.disconnect();
 			client.user.setPresence({}).catch(console.error);
 		}
+
 		voiceMap.get(newVoiceState.member).close();
 		voiceMap.delete(newVoiceState);
 	}

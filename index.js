@@ -14,7 +14,7 @@ for (const file of commandFiles) {
 	const command = require(`./commands/${file}`);
 	client.commands.set(command.name, command);
 	//since I don't expect all typed commands to have a voice command equivilent this if is required
-	if(command.excecuteVoice){
+	if(command.voice){
 		client.voiceCommands.set(command.name, command);
 	}	
 }

@@ -10,6 +10,7 @@ let timerElapsed = null;
 module.exports = {
     name: 'play',
     description: 'plays music',
+    voice: true,
     async execute(message, args) {
         if (message.member.voice.channel) {
             this.connection = await message.member.voice.channel.join();

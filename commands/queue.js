@@ -3,6 +3,7 @@ let queue = require('../resources/queue.json');
 module.exports = {
 	name: 'queue',
 	description: 'Displays the current song queue',
+    voice: true,
 	execute(message, args) {
 		if(!queue[0]){
             return message.channel.send('The queue is currently empty. Enter a song!');

@@ -89,13 +89,13 @@ class Voice {
 						let args = data.results[0].alternatives[0].transcript.split(' ');
 						const command = args.shift().toLowerCase();
 
-						if (client.voiceCommands.has(command)){ return; }
+						if (!client.voiceCommands.has(command)){ return; }
 
 						try {
 							if(!play.connection){
 								play.connection = this.connection;
 							}
-							client.commands.get(command).executeVoice(args);
+							client.voiceCommands.get(command).executeVoice(args);
 						} catch (error) {
 							console.error(error);
 						}

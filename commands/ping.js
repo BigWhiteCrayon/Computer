@@ -1,6 +1,7 @@
 module.exports = {
 	name: 'ping',
 	description: 'Ping!',
+    voice: true,
 	execute(message, args) {
 		if(message.member.displayName == 'Inheritor'){
 			return message.channel.send('I\'m sorry Jared. I\'m afraid I can\'t do that.', {tts: true});

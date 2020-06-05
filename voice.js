@@ -32,8 +32,14 @@ class Voice {
 			toDepth: 16
 		});
 
+		let firstConnection = member.guild.voice ? member.guild.voice.channel : member.guild.voice;
 		this.connection = member.voice.channel.join().then(connection => {
 			this.connection = connection;
+
+			if(!firstConnection){
+				this.connection.play('./resources/on_connect.wav', { volume: 0.01 });
+			}
+
 			const audio = this.connection.receiver.createStream(member.user, { mode: 'pcm', end: 'manual' });
 	
 			const convertTo1ChannelStream = new ConvertTo1ChannelStream();

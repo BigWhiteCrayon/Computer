@@ -92,8 +92,8 @@ class Voice {
 						if (!client.voiceCommands.has(command)){ return; }
 
 						try {
-							if(!play.connection){
-								play.connection = this.connection;
+							if(!client.voiceCommands.get(command).connection){
+								client.voiceCommands.get(command).connection = this.connection;
 							}
 							client.voiceCommands.get(command).executeVoice(args);
 						} catch (error) {

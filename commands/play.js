@@ -26,16 +26,16 @@ module.exports = {
                     if (this.connection.speaking.bitfield == 0) {
 
                         message.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
-                        this.connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                        this.connection.play(ytdl(res.videos[0].url, {filter: 'audioonly' }), { volume: 0.25 })
                             .on('start', () => {
-                                timerStart = process.hrtime.bigint();
-                                currentURL = res.videos[0].url;
+                                this.timerStart = process.hrtime.bigint();
+                                this.currentURL = res.videos[0].url;
                                 this.isPlaying = true;
                             })
                             .on('speaking', (value) => {
                                 if (value == 1) { return; }
 
-                                musicQueueHandler();
+                                musicQueueHandler(this.connection);
                             });
                         message.delete().catch(console.error);
                     }
@@ -69,10 +69,11 @@ module.exports = {
                 if (err) { return console.error(err); }
                 if (!this.isPlaying && !this.isPaused) {
                     this.connection.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
-                    this.connection.play(ytdl(res.videos[0].url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+                    this.currentStream = ytdl(res.videos[0].url, {filter: 'audioonly' });
+                    this.connection.play(this.currentStream, { volume: 0.25 })
                         .on('start', () => {
-                            timerStart = process.hrtime.bigint();
-                            currentURL = res.videos[0].url;
+                            this.timerStart = process.hrtime.bigint();
+                            this.currentURL = res.videos[0].url;
                             this.isPlaying = true;
                         })
                         .on('speaking', (value) => {
@@ -94,16 +95,16 @@ module.exports = {
         if (!this.isPlaying) { return; }
         this.isPaused = true;
         this.isPlaying = false;
-        timerElapsed = process.hrtime.bigint() - timerStart;
+        this.timerElapsed = process.hrtime.bigint() - this.timerStart;
     },
     //at the moment due to how inconsistent youtube is this just doesn't work, I'm leaving it in for hope
     resume() {
         if (!this.isPaused) { return; }
         this.isPaused = false;
         this.isPlaying = true;
-        this.connection.play(ytdl(currentURL+'&t='+(timerElapsed / 1000000000n).toString(), { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+        this.connection.play(ytdl(this.currentURL+'&t='+(this.timerElapsed / 1000000000n).toString(), { filter: 'audioonly' }), { volume: 0.25 })
             .on('start', () => {
-                timerStart = process.hrtime.bigint() - timerElapsed;
+                this.timerStart = process.hrtime.bigint() - this.timerElapsed;
             })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
@@ -119,22 +120,17 @@ module.exports = {
 function musicQueueHandler(connection) {
     if (queue[0]) {
         const song = queue.shift();
-        if(!this.connection){
-            this.isPlaying = false;
-            this.isPaused = false;
-            queue = [];
-        }
-        else if (connection.client.user.lastMessage && queue[0]) {
+        if (connection.client.user.lastMessage && queue[0]) {
             qCommand.execute(connection.client.user.lastMessage);
         }
         else if (!queue[0] && connection.client.user.lastMessage) {
             connection.client.user.lastMessage.delete().catch(console.error);
         }
         connection.client.user.setPresence({ activity: { type: 'LISTENING', name: song.title } });
-        connection.play(ytdl(song.url, { quality: 'highestaudio', filter: 'audioonly' }), { volume: 0.25 })
+        connection.play(ytdl(song.url, {filter: 'audioonly' }), { volume: 0.25 })
             .on('start', () => {
-                timerStart = process.hrtime.bigint();
-                currentURL = song.url;
+                module.exports.timerStart = process.hrtime.bigint();
+                module.exports.currentURL = song.url;
             })
             .on('speaking', (value) => {
                 if (value == 1) { return; }
@@ -143,8 +139,8 @@ function musicQueueHandler(connection) {
             });
     }
     else {
-        this.isPlaying = false;
-        currentURL = null;
+        module.exports.isPlaying = false;
+        module.exports.currentURL = null;
         connection.client.user.setPresence({}).catch(console.error);
     }
 }

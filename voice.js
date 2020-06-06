@@ -2,7 +2,6 @@ const { Models, Detector } = require('snowboy');
 const speech = require('@google-cloud/speech');
 const SampleRate = require('node-libsamplerate');
 const { Transform } = require('stream');
-const play = require('./commands/play.js');
 
 const speechClient = new speech.SpeechClient();
 
@@ -67,8 +66,8 @@ class Voice {
 
 		this.detector.on('hotword', () => {
 			this.monoAudio.unpipe(this.detector);
-			if (play.isPlaying) {
-				play.pause();
+			if (this.connection.client.voiceCommands.get('play').isPlaying) {
+				this.connection.client.voiceCommands.get('play').pause();
 			}
 			this.connection.play('./resources/on_connect.wav', { volume: 0.75 });
 
@@ -76,8 +75,8 @@ class Voice {
 			this.requestStream = speechClient.streamingRecognize(request)
 				.on('error', console.error)
 				.on('data', data => {
-					if (play.isPaused) {
-						play.resume();
+					if (this.connection.client.voiceCommands.get('play').isPaused) {
+						this.connection.client.voiceCommands.get('play').resume();
 					}
 					this.monoAudio.unpipe(this.requestStream);
 					this.monoAudio.pipe(this.detector);
@@ -117,9 +116,6 @@ class Voice {
 	close() {
 		if (this.requestStream && this.requestStream.writable) {
 			this.requestStream.destroy();
-			if(play.isPaused){
-				play.resume();
-			}
 		}
 		if(this.monoAudio){
 			this.monoAudio.destroy();

@@ -51,6 +51,9 @@ client.on('voiceStateUpdate', async (oldVoiceState, newVoiceState) => {
 		if(!voiceMap.has(newVoiceState.member) || !newVoiceState.guild.voice.connection){ return; }//they were never connected
 
 		if(oldVoiceState.channel.members.size <= 1){
+			client.voiceCommands.get('play').isPaused = false;
+			client.voiceCommands.get('play').isPlaying = false;
+			client.voiceCommands.get('play').connection = null;
 			oldVoiceState.guild.voice.connection.disconnect();
 			client.user.setPresence({}).catch(console.error);
 		}

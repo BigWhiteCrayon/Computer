@@ -119,7 +119,12 @@ module.exports = {
 function musicQueueHandler(connection) {
     if (queue[0]) {
         const song = queue.shift();
-        if (connection.client.user.lastMessage && queue[0]) {
+        if(!connection){
+            this.isPlaying = false;
+            this.isPaused = false;
+            queue = [];
+        }
+        else if (connection.client.user.lastMessage && queue[0]) {
             qCommand.execute(connection.client.user.lastMessage);
         }
         else if (!queue[0] && connection.client.user.lastMessage) {

@@ -69,8 +69,7 @@ module.exports = {
                 if (err) { return console.error(err); }
                 if (!this.isPlaying && !this.isPaused) {
                     this.connection.client.user.setPresence({ activity: { type: 'LISTENING', name: res.videos[0].title } });
-                    this.currentStream = ytdl(res.videos[0].url, {filter: 'audioonly' });
-                    this.connection.play(this.currentStream, { volume: 0.25 })
+                    this.connection.play(ytdl(res.videos[0].url, {filter: 'audioonly' }), { volume: 0.25 })
                         .on('start', () => {
                             this.timerStart = process.hrtime.bigint();
                             this.currentURL = res.videos[0].url;

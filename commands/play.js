@@ -119,7 +119,7 @@ module.exports = {
 function musicQueueHandler(connection) {
     if (queue[0]) {
         const song = queue.shift();
-        if(!connection){
+        if(!this.connection){
             this.isPlaying = false;
             this.isPaused = false;
             queue = [];
